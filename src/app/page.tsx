@@ -1,103 +1,110 @@
-import Image from "next/image";
+// frontend/app/page.tsx
+'use client';
 
-export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+export default function PlayerSetupPage() {
+    const [playerName, setPlayerName] = useState<string>('');
+    const [playerId, setPlayerId] = useState<string>('');
+    const [isLoading, setIsLoading] = useState<boolean>(true); // State สำหรับควบคุมการโหลดข้อมูล
+
+    const router = useRouter();
+
+    useEffect(() => {
+        // โหลด playerId และ playerName จาก localStorage
+        let storedPlayerId = localStorage.getItem('playerId');
+        const storedPlayerName = localStorage.getItem('playerName');
+
+        if (!storedPlayerId) {
+            // ถ้ายังไม่มี playerId ให้สร้างขึ้นมาใหม่
+            storedPlayerId = "player-" + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem('playerId', storedPlayerId);
+        }
+        setPlayerId(storedPlayerId); // กำหนด playerId เสมอ
+
+        if (storedPlayerName) {
+            // ถ้ามีชื่ออยู่แล้ว (ไม่ใช่ค่าว่าง) ให้กรอกชื่อและนำทางไปหน้า lobby ทันที
+            setPlayerName(storedPlayerName);
+            router.replace('/lobby'); // ใช้ replace เพื่อไม่ให้ย้อนกลับมาหน้านี้ด้วยปุ่ม back
+        } else {
+            // ถ้ายังไม่มีชื่อ ให้ตั้งค่าเป็นว่าง และรอให้ผู้ใช้กรอก
+            setPlayerName('');
+        }
+        setIsLoading(false); // โหลดข้อมูลเสร็จสิ้น
+
+    }, [router]);
+
+    const handleSavePlayerName = () => {
+        if (playerName.trim()) {
+            localStorage.setItem('playerName', playerName.trim());
+            router.push('/lobby'); // ไปหน้า Lobby เมื่อบันทึกชื่อสำเร็จ
+        } else {
+            alert('Please enter your name.');
+        }
+    };
+
+    if (isLoading) {
+        return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2em' }}>Loading...</div>;
+    }
+
+    return (
+        <div style={{
+            maxWidth: '600px',
+            margin: '100px auto',
+            padding: '40px',
+            border: '1px solid #ddd',
+            borderRadius: '12px',
+            boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
+            fontFamily: 'Arial, sans-serif',
+            textAlign: 'center',
+            backgroundColor: '#ffffff'
+        }}>
+            <h1 style={{ color: '#333', marginBottom: '25px', fontSize: '2.5em' }}>Welcome to Ito Game!</h1>
+            <p style={{ fontSize: '1.2em', color: '#555', marginBottom: '30px' }}>
+                Please enter your desired player name to get started.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                <input
+                    type="text"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="Your Name"
+                    style={{
+                        padding: '15px',
+                        fontSize: '1.2em',
+                        width: '80%',
+                        border: '2px solid #007bff',
+                        borderRadius: '8px',
+                        outline: 'none',
+                        boxShadow: '0 2px 5px rgba(0,123,255,0.2)'
+                    }}
+                />
+                <button
+                    onClick={handleSavePlayerName}
+                    style={{
+                        padding: '15px 30px',
+                        fontSize: '1.2em',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 10px rgba(40,167,69,0.3)',
+                        transition: 'background-color 0.3s ease, transform 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#218838'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
+                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                    Save Name & Enter Lobby
+                </button>
+            </div>
+            <p style={{ fontSize: '0.9em', color: '#777', marginTop: '30px' }}>
+                Your unique Player ID: <code style={{ backgroundColor: '#f0f8ff', padding: '5px 10px', borderRadius: '5px', border: '1px dashed #a0d0ff' }}>{playerId}</code>
+                <br/>(This ID is saved locally on your browser and will be used to identify you in games.)
+            </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    );
 }

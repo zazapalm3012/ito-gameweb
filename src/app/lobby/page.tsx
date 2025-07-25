@@ -71,8 +71,6 @@ export default function LobbyPage() {
             alert('Please enter a game name.');
             return;
         }
-        // ไม่ต้องเช็ค playerName.trim() ซ้ำที่นี่แล้ว เพราะถูกเช็คและ redirect ไปแล้วตอนต้น useEffect
-        // และ playerId/playerName ถูกโหลดเข้า state แล้ว
 
         try {
             const response = await fetch('http://localhost:5000/api/games', {
@@ -143,13 +141,13 @@ export default function LobbyPage() {
         }
     };
 
-    const handleQuickJoin = () => {
-        if (lobbyGames.length > 0) {
-            handleJoinGame(lobbyGames[0].id); // ใช้ game.id จาก lobbyGames[0]
-        } else {
-            alert('No games available to quick join. Create a new one!');
-        }
-    };
+    // const handleQuickJoin = () => {
+    //     if (lobbyGames.length > 0) {
+    //         handleJoinGame(lobbyGames[0].id); // ใช้ game.id จาก lobbyGames[0]
+    //     } else {
+    //         alert('No games available to quick join. Create a new one!');
+    //     }
+    // };
 
     // แสดงหน้าโหลดจนกว่าจะโหลดข้อมูลผู้เล่นเสร็จ
     if (isLoadingPlayerInfo) {
@@ -222,7 +220,7 @@ export default function LobbyPage() {
                         {lobbyGames.map((game) => (
                             <li key={game.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px dashed #eee' }}>
                                 <span>
-                                    <strong>{game.name}</strong> (Players: {game.currentPlayers}/{game.maxPlayers})
+                                    <strong>{game.name}</strong> (Players: {game.players.length}/{game.maxPlayers})
                                 </span>
                                 <button
                                     onClick={() => handleJoinGame(game.id)}

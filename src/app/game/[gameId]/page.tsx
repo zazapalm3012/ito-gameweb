@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState  } from 'react';
 import { useParams } from 'next/navigation'; // สำหรับดึงค่า gameId จาก URL
 import { useRouter } from 'next/navigation'; // สำหรับ Redirect
 import { toast } from 'react-hot-toast';
+import { Input } from "@/components/ui/input"
 // Import types ที่ถูกต้องจาก frontend/src/types.ts
 import {
     GameState,
@@ -23,17 +24,16 @@ const GAME_TOPICS = [ // ย้ายมาที่นี่เพื่อใ�
 ];
 
 export default function GameRoomPage() {
-    const params = useParams(); // Hook จาก Next.js สำหรับดึง params จาก URL
-    const router = useRouter(); // Hook จาก Next.js สำหรับการ navigate
-    const gameId = params.gameId as string; // ดึง gameId จาก URL
+    const params = useParams(); 
+    const router = useRouter(); 
+    const gameId = params.gameId as string;
 
     // State สำหรับเก็บสถานะเกมปัจจุบัน
     const [gameState, setGameState] = useState<GameState | null>(null);
     // State สำหรับเก็บ WebSocket instance
     const [gameWs, setGameWs] = useState<WebSocket | null>(null);
-    // State สำหรับเก็บ Theme game
-    const [currentTopic, setCurrentTopic] = useState<string | null>(null);
     const [myPlayer, setMyPlayer] = useState<Player | null>(null);
+    const [customTheme, setCustomTheme] = useState<string>('');
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const storedPlayerId = localStorage.getItem('playerId');
@@ -46,11 +46,11 @@ export default function GameRoomPage() {
 
     const handleChangeTheme = useCallback((newTopic: string) => {
         if (!gameWs || gameWs.readyState !== WebSocket.OPEN) {
-            alert('WebSocket is not connected. Cannot change theme.');
+            toast.error('WebSocket is not connected. Cannot change theme.');
             return;
         }
         if (myPlayer?.id !== gameState?.hostId) { // ตรวจสอบว่าเป็น Host เท่านั้น
-            alert('Only the host can change the theme.');
+            toast.error('Only the host can change the theme.');
             return;
         }
 
@@ -66,12 +66,12 @@ export default function GameRoomPage() {
         if (gameId) {
             navigator.clipboard.writeText(gameId)
                 .then(() => {
-                    toast.success('Game ID copied to clipboard!'); // ใช้ toast หรือ alert
+                    toast.success('Game ID copied to clipboard!'); // ใช้ toast หรือ toast.error
                     console.log('Game ID copied:', gameId);
                 })
                 .catch(err => {
                     console.error('Failed to copy Game ID:', err);
-                    alert('Failed to copy Game ID.');
+                    toast.error('Failed to copy Game ID.');
                 });
         }
     }, [gameId]);
@@ -121,18 +121,17 @@ export default function GameRoomPage() {
                     break;
                 case ServerMessageType.ERROR:
                     // เมื่อ Server ส่งข้อความ Error มา
-                    alert(`Server Error: ${message.message}`);
-                    console.error('Server Error:', message.message);
+                    toast.error(`Server Error: ${message.message}`);
                     break;
                 case ServerMessageType.PLAYER_LEFT:
                     // เมื่อมีผู้เล่นออกจากเกม (อาจจะแจ้งเตือนหรืออัปเดต UI เล็กน้อย)
-                    alert(`Player ${(message as any).playerId} left the game.`);
+                    toast.error(`Player ${(message as any).playerId} left the game.`);
                     // สถานะเกมจะถูกอัปเดตผ่าน GAME_STATE_UPDATE อีกที
                     break;
                 case ServerMessageType.CARD_PLAYED_VALIDATION:
                     // ผลการลงไพ่ (ว่าถูกต้องหรือไม่, เสียพลังชีวิตเท่าไหร่)
                     const validationMsg = message as CardPlayedValidationMessage;
-                    alert(`Action: ${validationMsg.message}`);
+                    toast.error(`Action: ${validationMsg.message}`);
                     // สถานะเกมจะถูกอัปเดตผ่าน GAME_STATE_UPDATE อีกที
                     break;
                 default:
@@ -151,7 +150,7 @@ export default function GameRoomPage() {
         // Event handler เมื่อเกิด Error กับ WebSocket
         socket.onerror = (error) => {
             console.error(`Game WS error for ${gameId}:`, error);
-            alert('WebSocket connection error. Please try again.');
+            toast.error('WebSocket connection error. Please try again.');
         };
 
         setGameWs(socket); // เก็บ WebSocket instance ไว้ใน State เพื่อใช้ภายหลัง
@@ -170,16 +169,16 @@ export default function GameRoomPage() {
     const handlePlayCard = (cardValue: CardValue) => {
         // ตรวจสอบสถานะ WebSocket และสถานะเกมก่อนส่งข้อความ
         if (!gameWs || gameWs.readyState !== WebSocket.OPEN) {
-            alert('Not connected to game server.');
+            toast.error('Not connected to game server.');
             return;
         }
         if (!gameState || gameState.roundState !== 'Playing') {
-            alert('Game is not in playing state.');
+            toast.error('Game is not in playing state.');
             return;
         }
         const myPlayer = gameState.players.find(p => p.id === myPlayerId); 
         if (!myPlayer || !myPlayer.hand.includes(cardValue)) {
-            alert('You do not have this card.');
+            toast.error('You do not have this card.');
             return;
         }
 
@@ -194,10 +193,13 @@ export default function GameRoomPage() {
 
     // Function สำหรับโฮสต์เพื่อเริ่มเกม
     const handleStartGame = async () => {
-        console.log("Clicked")
         // ตรวจสอบว่าเป็นโฮสต์หรือไม่
         if (!gameState || gameState.hostId !== myPlayerId) {
-            alert('Only the host can start the game.');
+            toast.error('Only the host can start the game.');
+            return;
+        }
+        if(gameState.currentTopic === ''){
+            toast.error("Cannot start. You must select theme before start")
             return;
         }
         try {
@@ -209,12 +211,11 @@ export default function GameRoomPage() {
             });
             if (!response.ok) {
                 const errorData = await response.json();
-                alert(`Failed to start game: ${errorData.error}`);
+                toast.error(`Failed to start game: ${errorData.error}`);
             }
             // Backend จะ Broadcast สถานะเกมที่เริ่มแล้วผ่าน WebSocket
         } catch (error) {
-            console.error('Error starting game:', error);
-            alert('Error starting game.');
+            toast.error('Error starting game.', error);
         }
     };
 
@@ -222,7 +223,7 @@ export default function GameRoomPage() {
     const handleNextRound = async () => {
         // ตรวจสอบว่าเป็นโฮสต์หรือไม่
         if (!gameState || gameState.hostId !== myPlayerId) {
-            alert('Only the host can start the next round.');
+            toast.error('Only the host can start the next round.');
             return;
         }
         try {
@@ -234,12 +235,12 @@ export default function GameRoomPage() {
             });
             if (!response.ok) {
                 const errorData = await response.json();
-                alert(`Failed to start next round: ${errorData.error}`);
+                toast.error(`Failed to start next round: ${errorData.error}`);
             }
             // Backend จะ Broadcast สถานะเกมที่เริ่มรอบใหม่แล้วผ่าน WebSocket
         } catch (error) {
             console.error('Error starting next round:', error);
-            alert('Error starting next round.');
+            toast.error('Error starting next round.');
         }
     };
 
@@ -302,20 +303,19 @@ export default function GameRoomPage() {
                 {gameState.roundState === 'Lobby' && (
                     <div style={{ textAlign: 'center', padding: '20px', backgroundColor: '#f0f8ff', borderRadius: '8px' }}>
                         <p style={{ fontSize: '1.1em', marginBottom: '15px' }}>Waiting for players... ({gameState.players.length}/{gameState.maxPlayers})</p>
-                        <p>{gameState.hostId}, {gameState.players.find(p => p.id === gameState.hostId)?.name} {myPlayerId}</p>
                         {gameState.hostId === myPlayerId && (
-                            <button
+                            <Button
                                 onClick={handleStartGame}
-                                
                                 style={{ padding: '10px 20px', fontSize: '1em' }}
+                                className={(gameState.players.length < 2 || !gameState.currentTopic)  ? 'bg-red-500' : 'bg-green-500'}
                             >
-                                Start Game ({gameState.players.length < 2 ? 'Need more players' : 'Ready'})
-                            </button>
+                                Start Game ({(gameState.players.length < 2 || !gameState.currentTopic)  ? 'Need more players or Change theme ' : 'Ready'})
+                            </Button>
                         )}
                         {/* Dropdown สำหรับเปลี่ยน Theme */}
                         <h3 className="text-xl font-semibold mt-6 mb-3">Theme Game is: {gameState.currentTopic || 'Not set yet'}</h3>
-                        {gameState.hostId === myPlayerId && ( // แสดงเฉพาะ Host
-                            <div className="mb-4">
+                        {gameState.hostId === myPlayerId && (
+                            <div className="mb-4 mx-8">
                                 <label htmlFor="theme-select" className="block text-sm font-medium text-gray-700">Change Theme:</label>
                                 <select
                                     id="theme-select"
@@ -329,6 +329,29 @@ export default function GameRoomPage() {
                                         <option key={topic} value={topic}>{topic}</option>
                                     ))}
                                 </select>
+                                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                                    <Input
+                                        id="custom-theme-input"
+                                        placeholder="Type your custom theme here" // เปลี่ยน placeholder ให้ชัดเจนขึ้น
+                                        onChange={(e) => setCustomTheme(e.target.value)}
+                                        value={customTheme || ''} // เพิ่ม value prop เพื่อควบคุม Input
+                                        className="w-full sm:w-2/3 p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                    <Button
+                                        onClick={() => handleChangeTheme(customTheme)}
+                                        
+                                        disabled={!customTheme || customTheme.trim() === ''}
+                                        className={`
+                                            w-full sm:w-1/3 py-3 px-4 rounded-md text-white font-semibold transition-colors
+                                            ${(!customTheme || customTheme.trim() === '')
+                                                ? 'bg-gray-400 cursor-not-allowed' 
+                                                : 'bg-purple-600 hover:bg-purple-700' 
+                                            }
+                                        `}
+                                    >
+                                        Enter Custom Theme
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>

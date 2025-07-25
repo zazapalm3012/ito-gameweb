@@ -3,6 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import toast from 'react-hot-toast';
 
 export default function LobbyPage() {
     // ลบ gameIdInput และ setGameIdInput ออก เพราะไม่มีการใช้งานแล้ว
@@ -13,6 +15,7 @@ export default function LobbyPage() {
     const [playerId, setPlayerId] = useState<string>(''); // เก็บ playerId
     const [isLoadingPlayerInfo, setIsLoadingPlayerInfo] = useState<boolean>(true); // เพิ่ม State สำหรับการโหลดข้อมูลผู้เล่น
 
+    const [joinGameId, setJoinGameId] = useState('');
     const router = useRouter();
 
     // Effect สำหรับโหลด Player Info จาก localStorage และตรวจสอบ
@@ -104,7 +107,10 @@ export default function LobbyPage() {
         // Ensure player name is set (though this should be handled by the root page now)
         const myPlayerId = localStorage.getItem('playerId'); // Use 'playerId' as per your localStorage keys
         const myPlayerName = localStorage.getItem('playerName'); // Use 'playerName' as per your localStorage keys
-
+        if (!gameId) {
+            toast.error("Invalid Game ID")
+            return;
+        }
         if (!myPlayerId || !myPlayerName || myPlayerName.trim() === '') {
             alert('Your player name is missing or empty. Please set it before joining a game.');
             router.replace('/'); // Redirect to the name setup page
@@ -129,8 +135,7 @@ export default function LobbyPage() {
                 router.push(`/game/${gameId}`); // Only navigate AFTER successful HTTP join
             } else {
                 const errorData = await response.json();
-                alert(`Failed to join game: ${errorData.error || 'Unknown error'}`);
-                console.error(`[Frontend Lobby] Failed to join game via HTTP:`, errorData);
+                toast.error(`Failed to join game: ${errorData.error || 'Unknown error'}`);
             }
         } catch (error) {
             console.error(`[Frontend Lobby] Network error or unexpected error during HTTP join:`, error);
@@ -178,7 +183,18 @@ export default function LobbyPage() {
                     (This ID is saved on your browser)
                 </p>
             </div>
-
+            {/* ส่วนสำหรับ Join เกมด้วย ID */}
+            <div>
+                    <h2 className="text-2xl font-semibold mb-4">Join Existing Game</h2>
+                    <input
+                        type="text"
+                        placeholder="Enter Game ID"
+                        value={joinGameId}
+                        onChange={(e) => setJoinGameId(e.target.value)}
+                        className="w-full p-3 mb-4 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <Button onClick={() => handleJoinGame(joinGameId)} className="w-full py-3 text-lg bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors">Join Game</Button>
+                </div>
             <h2 style={{ fontSize: '1.5em', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '20px', color: '#555' }}>Create New Game</h2>
             <div style={{ marginBottom: '30px' }}>
                 <input
@@ -194,6 +210,7 @@ export default function LobbyPage() {
                 >
                     Create Game
                 </button>
+                
             </div>
 
             <h2 style={{ fontSize: '1.5em', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '20px', color: '#555' }}>Join Existing Game</h2>
@@ -219,7 +236,7 @@ export default function LobbyPage() {
                     </ul>
                 )}
             </div>
-            <div style={{ textAlign: 'center', marginTop: '30px' }}>
+            {/* <div style={{ textAlign: 'center', marginTop: '30px' }}>
                 <button
                     onClick={handleQuickJoin}
                     disabled={lobbyGames.length === 0}
@@ -227,7 +244,7 @@ export default function LobbyPage() {
                 >
                     Quick Join First Available Game
                 </button>
-            </div>
+            </div> */}
         </div>
     );
 }

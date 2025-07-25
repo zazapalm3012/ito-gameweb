@@ -1,9 +1,10 @@
 // frontend/app/game/[gameId]/page.tsx
 'use client'; // กำหนดให้เป็น Client Component เพื่อใช้ Hooks เช่น useState, useEffect
 
-import { useEffect, useState  } from 'react';
+import { useCallback, useEffect, useState  } from 'react';
 import { useParams } from 'next/navigation'; // สำหรับดึงค่า gameId จาก URL
 import { useRouter } from 'next/navigation'; // สำหรับ Redirect
+import { toast } from 'react-hot-toast';
 // Import types ที่ถูกต้องจาก frontend/src/types.ts
 import {
     GameState,
@@ -11,7 +12,15 @@ import {
     ClientMessageType,
     CardValue,
     CardPlayedValidationMessage,
+    Player,
 } from '@/app/types';
+import { Button } from '@/components/ui/button';
+
+const GAME_TOPICS = [ // ย้ายมาที่นี่เพื่อให้ component ใช้งานได้เลย
+    "Spiciness of Food", "Weird Name", "Awkward Moment", "Dangerous Situation",
+    "Embarrassing Memory", "Annoying Things", "Stressful Situations",
+    "Boring Activities", "Useful Life Hacks", "Overrated Things", "Underrated Things",
+];
 
 export default function GameRoomPage() {
     const params = useParams(); // Hook จาก Next.js สำหรับดึง params จาก URL
@@ -22,7 +31,50 @@ export default function GameRoomPage() {
     const [gameState, setGameState] = useState<GameState | null>(null);
     // State สำหรับเก็บ WebSocket instance
     const [gameWs, setGameWs] = useState<WebSocket | null>(null);
+    // State สำหรับเก็บ Theme game
+    const [currentTopic, setCurrentTopic] = useState<string | null>(null);
+    const [myPlayer, setMyPlayer] = useState<Player | null>(null);
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const storedPlayerId = localStorage.getItem('playerId');
+            const storedPlayerName = localStorage.getItem('playerName');
+            if (storedPlayerId && storedPlayerName) {
+                setMyPlayer({ id: storedPlayerId, name: storedPlayerName, hand: [], hasPlayedCardThisRound: false });
+            }
+        }
+    }, []);
 
+    const handleChangeTheme = useCallback((newTopic: string) => {
+        if (!gameWs || gameWs.readyState !== WebSocket.OPEN) {
+            alert('WebSocket is not connected. Cannot change theme.');
+            return;
+        }
+        if (myPlayer?.id !== gameState?.hostId) { // ตรวจสอบว่าเป็น Host เท่านั้น
+            alert('Only the host can change the theme.');
+            return;
+        }
+
+        const message = {
+            type: 'CHANGE_TOPIC', // ตรงกับ ClientMessageType ใน Backend
+            topic: newTopic,
+        };
+        console.log('[Frontend Game] Sending change topic message:', message);
+        gameWs.send(JSON.stringify(message));
+    }, [gameWs, myPlayer, gameState]);
+
+    const handleCopyGameId = useCallback(() => {
+        if (gameId) {
+            navigator.clipboard.writeText(gameId)
+                .then(() => {
+                    toast.success('Game ID copied to clipboard!'); // ใช้ toast หรือ alert
+                    console.log('Game ID copied:', gameId);
+                })
+                .catch(err => {
+                    console.error('Failed to copy Game ID:', err);
+                    alert('Failed to copy Game ID.');
+                });
+        }
+    }, [gameId]);
 
     // Effect Hook สำหรับจัดการ WebSocket Connection และการดึงข้อมูลเริ่มต้น
     useEffect(() => {
@@ -64,6 +116,7 @@ export default function GameRoomPage() {
             switch (message.type) {
                 case ServerMessageType.GAME_STATE_UPDATE:
                     // เมื่อได้รับสถานะเกมอัปเดตเต็มรูปแบบ
+                    console.log('setttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt');
                     setGameState(message.payload as GameState); // อัปเดต State ของเกม
                     break;
                 case ServerMessageType.ERROR:
@@ -92,7 +145,6 @@ export default function GameRoomPage() {
         socket.onclose = () => {
             console.log(`Disconnected from game WS: ${gameId}`);
             setGameWs(null); // ล้าง WebSocket instance
-            alert('Disconnected from game. Returning to lobby.');
             router.push('/lobby'); // Redirect กลับไปหน้า Lobby
         };
 
@@ -111,7 +163,7 @@ export default function GameRoomPage() {
                 socket.close();
             }
         };
-    }, [gameId, router]); // Dependency array: Effect จะรันใหม่เมื่อ gameId หรือ router เปลี่ยน
+    }, [gameId, router, myPlayer]); // Dependency array: Effect จะรันใหม่เมื่อ gameId หรือ router เปลี่ยน
     const myPlayerId = typeof window !== 'undefined' ? localStorage.getItem('playerId') : null;
     const myPlayerName = typeof window !== 'undefined' ? localStorage.getItem('playerName') : null;
     // Function สำหรับจัดการการลงไพ่
@@ -191,16 +243,25 @@ export default function GameRoomPage() {
         }
     };
 
+    const handleLeaveGame = () => {
+        if (gameWs && gameWs.readyState === WebSocket.OPEN) {
+            gameWs.close(1000, 'Player leaving game'); // ปิด WebSocket connection ด้วยโค้ด 1000 (Normal Closure)
+        }
+        router.push('/lobby'); // Redirect กลับไปหน้า Lobby ทันที
+        toast.success('You have left the game.');
+    };
+
     // แสดงสถานะ Loading ถ้า gameState ยังเป็น null
     if (!gameState || !myPlayerId || !myPlayerName) {
         return <div style={{ padding: '20px' }}>Loading game...</div>;
     }
 
     // หาข้อมูลผู้เล่นคนปัจจุบันจาก gameState
-    const myPlayer = gameState.players.find(p => p.id === myPlayerId);
+    const myPlayered = gameState.players.find(p => p.id === myPlayerId);
     
-    console.log("myPlayer: " ,myPlayer)
-    if (!myPlayer) {
+
+    console.log("myPlayered: " ,myPlayered)
+    if (!myPlayered) {
         // กรณีที่ myPlayerId มีอยู่ แต่ไม่พบใน players array ของ gameState
         // อาจจะเกิดขึ้นได้ถ้า Backend ไม่ได้เพิ่มผู้เล่นคนนี้เข้าเกม
         console.warn(`My player (${myPlayerId}) not found in game state players array.`);
@@ -210,11 +271,25 @@ export default function GameRoomPage() {
     // Render UI ของหน้าห้องเกม
     return (
         <div style={{ display: 'flex', padding: '20px', fontFamily: 'Arial, sans-serif', gap: '20px', minHeight: '100vh', boxSizing: 'border-box' }}>
+            <Button
+                onClick={handleLeaveGame}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition-colors"
+            >
+                &larr; Leave Game
+            </Button>
             {/* Game Info & Play Area */}
             <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
                 <h1 style={{ textAlign: 'center', color: '#333', marginBottom: '10px' }}>Ito Game: {gameState.name}</h1>
-                <p style={{ textAlign: 'center', color: '#666', marginBottom: '20px' }}>Game ID: <code style={{ backgroundColor: '#eee', padding: '3px 6px', borderRadius: '4px' }}>{gameId.substring(0, 8)}</code></p>
-
+                <p className="text-center text-gray-600 mb-5">
+                    Game ID: <code className="bg-gray-100 px-1.5 py-1 rounded-md text-sm">{gameId.substring(0,8)}</code>
+                    <button
+                        onClick={handleCopyGameId}
+                        className="ml-2 px-2.5 py-1.5 bg-green-500 text-white rounded-md cursor-pointer text-xs hover:bg-green-600 transition-colors"
+                    >
+                        Copy ID
+                    </button>
+                </p>
+                
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '20px' }}>
                     <p style={{ fontSize: '1.1em' }}>Host: <strong>{gameState.players.find(p => p.id === gameState.hostId)?.name}</strong></p>
                     <p style={{ fontSize: '1.1em' }}>Round: <strong>{gameState.currentRound}</strong> / 3</p>
@@ -237,53 +312,69 @@ export default function GameRoomPage() {
                                 Start Game ({gameState.players.length < 2 ? 'Need more players' : 'Ready'})
                             </button>
                         )}
+                        {/* Dropdown สำหรับเปลี่ยน Theme */}
+                        <h3 className="text-xl font-semibold mt-6 mb-3">Theme Game is: {gameState.currentTopic || 'Not set yet'}</h3>
+                        {gameState.hostId === myPlayerId && ( // แสดงเฉพาะ Host
+                            <div className="mb-4">
+                                <label htmlFor="theme-select" className="block text-sm font-medium text-gray-700">Change Theme:</label>
+                                <select
+                                    id="theme-select"
+                                    onChange={(e) => handleChangeTheme(e.target.value)}
+                                    value={gameState.currentTopic || ''} // ใช้ currentTopic จาก state
+                                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                    style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc', width: '100%', maxWidth: '300px', margin: 'auto' }}
+                                >
+                                    <option value="" disabled>Select a theme</option>
+                                    {GAME_TOPICS.map(topic => (
+                                        <option key={topic} value={topic}>{topic}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {gameState.roundState === 'Playing' && (
                     <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', backgroundColor: '#fff' }}>
                         <h2 style={{ color: '#d9534f', textAlign: 'center', marginTop: 0 }}>
-                            **หัวข้อสำหรับรอบนี้:** เลข {gameState.topicCard}
+                            Theme: {gameState.currentTopic}
                         </h2>
-                        <p style={{ fontSize: '0.95em', color: '#555', textAlign: 'center', marginBottom: '20px' }}>
+                        {/* <p style={{ fontSize: '0.95em', color: '#555', textAlign: 'center', marginBottom: '20px' }}>
                             ผู้เล่นทุกคนต้อง **พูดคุยปรึกษากันในโลกภายนอก (Discord, Voice Chat)** เพื่อตกลงกันว่าตัวเลข <strong style={{ color: '#d9534f' }}>{gameState.topicCard}</strong> นี้หมายถึงอะไรในบริบทของหัวข้อ เช่น ความแรงของรถ, ขนาดสัตว์, หรือระดับความสุข
                             <br/>**ห้ามบอกตัวเลขไพ่ในมือเด็ดขาด!** ให้สื่อสารผ่านการตีความหัวข้อนี้เท่านั้น
-                        </p>
+                        </p> */}
                         <hr style={{ margin: '20px 0' }}/>
                         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                             <p style={{ fontSize: '1.2em', fontWeight: 'bold' }}>
                                 ไพ่ที่ลงล่าสุด: <span style={{ color: '#007bff' }}>{gameState.lastPlayedCard === 0 ? 'ยังไม่มีไพ่ถูกลง' : gameState.lastPlayedCard}</span>
                             </p>
-                            <p style={{ fontSize: '0.9em', color: '#888' }}>
-                                (คุณต้องลงไพ่ที่สูงกว่า {gameState.lastPlayedCard})
-                            </p>
                         </div>
-                        {myPlayer && (
+                        {myPlayered && (
                             <div style={{ textAlign: 'center' }}>
-                                <h3 style={{ marginBottom: '10px' }}>ไพ่ในมือของคุณ ({myPlayer.hand.length} ใบ):</h3>
+                                <h3 style={{ marginBottom: '10px' }}>ไพ่ในมือของคุณ ({myPlayered.hand.length} ใบ):</h3>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center', marginBottom: '20px' }}>
-                                    {myPlayer.hand.sort((a, b) => a - b).map(card => (
+                                    {myPlayered.hand.sort((a, b) => a - b).map(card => (
                                         <button
                                             key={card}
                                             onClick={() => handlePlayCard(card)}
-                                            disabled={gameState.roundState !== 'Playing' || myPlayer.hasPlayedCardThisRound} // ปิดการใช้งานปุ่มถ้าไม่ใช่ตาเล่น หรือลงไพ่ไปแล้ว
+                                            className='bg-blue-500'
                                             style={{
                                                 padding: '12px 20px',
                                                 fontSize: '1.2em',
-                                                backgroundColor: myPlayer.hasPlayedCardThisRound ? '#ccc' : '#007bff', // เปลี่ยนสีเมื่อลงไพ่แล้ว
+                                                
                                                 color: 'white',
                                                 border: 'none',
                                                 borderRadius: '8px',
                                                 boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
                                                 transition: 'transform 0.1s',
-                                                cursor: myPlayer.hasPlayedCardThisRound ? 'not-allowed' : 'pointer'
+                                                
                                             }}
                                         >
                                             {card}
                                         </button>
                                     ))}
                                 </div>
-                                {myPlayer.hand.length === 0 && <p style={{ color: 'green', fontWeight: 'bold' }}>คุณลงไพ่หมดมือแล้วในรอบนี้!</p>}
+                                {myPlayered.hand.length === 0 && <p style={{ color: 'green', fontWeight: 'bold' }}>คุณลงไพ่หมดมือแล้วในรอบนี้!</p>}
                             </div>
                         )}
                         <div style={{ marginTop: '20px', borderTop: '1px dashed #eee', paddingTop: '20px' }}>

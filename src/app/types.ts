@@ -28,6 +28,7 @@ export interface GameState {
     teamLivesRemaining: number; // Shared lives for the team
     roundState: 'Lobby' | 'Playing' | 'RoundEnd' | 'GameEnd'; // Current phase of the game
     maxPlayers: number;
+    currentTopic: string;
 }
 
 // --- Client -> Server WebSocket Messages ---
@@ -58,6 +59,7 @@ export enum ServerMessageType {
     GAME_DELETED = 'GAME_DELETED', // Notification for lobby clients
     ERROR = 'ERROR', // General error message
     CARD_PLAYED_VALIDATION = 'CARD_PLAYED_VALIDATION', // Result of a card play (success/failure, lives lost)
+    CHANGE_TOPIC = 'CHANGE_TOPIC',
 }
 
 // Interface for broadcasting game state updates

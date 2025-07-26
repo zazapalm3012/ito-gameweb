@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // frontend/app/game/[gameId]/page.tsx
 'use client'; // กำหนดให้เป็น Client Component เพื่อใช้ Hooks เช่น useState, useEffect
 
@@ -99,7 +101,7 @@ export default function GameRoomPage() {
 
         // สร้าง WebSocket Connection ไปยัง Backend สำหรับห้องเกมนี้
         // URL ต้องตรงกับที่ Hono Server ของเราเปิด WebSocket Endpoint ไว้
-        const socket = new WebSocket(`ws://localhost:5000/ws/game?gameId=${gameId}&playerId=${myPlayerId}&playerName=${myPlayerName}`);
+        const socket = new WebSocket(`wss://ito-gameweb-api.onrender.com/ws/game?gameId=${gameId}&playerId=${myPlayerId}&playerName=${myPlayerName}`);
 
         // Event handler เมื่อ WebSocket Connection เปิด
         socket.onopen = () => {
@@ -204,7 +206,7 @@ export default function GameRoomPage() {
         }
         try {
             // ส่ง HTTP POST Request ไปยัง Backend เพื่อเริ่มเกม
-            const response = await fetch(`http://localhost:5000/api/games/${gameId}/start`, {
+            const response = await fetch(`https://ito-gameweb-api.onrender.com/api/games/${gameId}/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ requesterId: myPlayerId })
@@ -215,7 +217,7 @@ export default function GameRoomPage() {
             }
             // Backend จะ Broadcast สถานะเกมที่เริ่มแล้วผ่าน WebSocket
         } catch (error) {
-            toast.error('Error starting game.', error);
+            toast.error('Error starting game.');
         }
     };
 
@@ -228,7 +230,7 @@ export default function GameRoomPage() {
         }
         try {
             // ส่ง HTTP POST Request ไปยัง Backend เพื่อเริ่มรอบใหม่
-            const response = await fetch(`http://localhost:5000/api/games/${gameId}/next-round`, {
+            const response = await fetch(`https://ito-gameweb-api.onrender.com/api/games/${gameId}/next-round`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ requesterId: myPlayerId })

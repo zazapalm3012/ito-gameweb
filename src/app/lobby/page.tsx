@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // frontend/app/lobby/page.tsx
 'use client';
 
@@ -54,7 +55,7 @@ export default function LobbyPage() {
 
     const fetchGames = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/games');
+            const response = await fetch('https://ito-gameweb-api.onrender.com/api/games');
             if (response.ok) {
                 const data = await response.json();
                 setLobbyGames(data);
@@ -73,7 +74,7 @@ export default function LobbyPage() {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/api/games', {
+            const response = await fetch('https://ito-gameweb-api.onrender.com/api/games', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -118,7 +119,7 @@ export default function LobbyPage() {
         // --- THIS IS THE CRITICAL HTTP CALL ---
         try {
             console.log(`[Frontend Lobby] Attempting to join game ${gameId} via HTTP POST.`);
-            const response = await fetch(`http://localhost:5000/api/games/${gameId}/join`, {
+            const response = await fetch(`https://ito-gameweb-api.onrender.com/api/games/${gameId}/join`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
